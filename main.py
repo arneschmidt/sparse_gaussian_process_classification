@@ -73,13 +73,13 @@ def main():
     num_classes = 3
     epochs_per_step = 5
     num_steps = 20
-    mode = 'mc'
+    mode = 'test'
     save_name = 'test'
 
     x,y = generate_data(samples_per_class)
 
     tensor_fn = tfp.distributions.Distribution.sample
-    inputs = tf.keras.layers.Input(shape=[2], batch_size=samples_per_class*num_classes) #, batch_size=config["model"]["batch_size"]),
+    inputs = tf.keras.layers.Input(shape=[2], batch_size=300) #, batch_size=config["model"]["batch_size"]),
     # tf.keras.layers.Dense(10, activation='relu'),
     vgp = tfp.layers.VariationalGaussianProcess(
         num_inducing_points=num_inducing_points,
@@ -94,7 +94,6 @@ def main():
             tf.constant_initializer(np.array(0.54).astype(np.float32))),
     )
     outputs = vgp(inputs)
-    vgp.add_loss(tf.reduce_sum(outputs.surrogate_posterior_kl_divergence_prior()))
 
     if mode == 'mc':
         outputs_softmax = tf.keras.layers.Softmax()(outputs)
@@ -105,6 +104,11 @@ def main():
         loss = lambda y, rv_y: rv_y.variational_loss(
             y, kl_weight=np.array(x.shape[0], x.dtype) / x.shape[0])
     else:
+        tfd = tfp.distributions
+        outputs_categorical = tfp.layers.DistributionLambda(
+            make_distribution_fn=lambda t: tfd.Categorical(logits=t), convert_to_tensor_fn=tfp.distributions.Distribution.sample)(outputs)
+        # out_mean = outputs_categorical.mean()
+        model = tf.keras.Model(inputs=inputs, outputs=outputs_categorical, name="vgp")
         def log_probab(observations, f):
             cat = tfd.Independent(tfd.Categorical(logits=f), reinterpreted_batch_ndims=1)
 
@@ -112,10 +116,10 @@ def main():
             #     normal.Normal(loc=fn_vals, scale=scale),
             #     reinterpreted_batch_ndims=1).log_prob(obs)
             return cat.log_prob(observations)
-        loss = lambda y, rv_y: rv_y.submodules[2].variational_loss(y, kl_weight=np.array(x.shape[0], x.dtype) / x.shape[0],
+        loss = lambda y, rv_y: outputs.variational_loss(y, kl_weight=np.array(x.shape[0], x.dtype) / x.shape[0],
                                                                     log_likelihood_fn = log_probab)
 
-    # model.build(input_shape=(2,samples_per_class*num_classes))
+    model.build(input_shape=[2, 300])
     tfd = tfp.distributions
     # loss = lambda y, rv_y: - rv_y.submodules[2].surrogate_posterior_expected_log_likelihood(y,log_likelihood_fn = log_probab, quadrature_size=20) + rv_y.submodules[2].surrogate_posterior_kl_divergence_prior()
 
