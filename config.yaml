@@ -1,0 +1,39 @@
+# This is the main config. Parameters are updated and possibly overwritten by dataset dependent configs.
+model:
+  mode: train # "train", "test", "predict", "predict_features"
+  batch_size: 16
+  epochs: 400
+  learning_rate: 0.1
+  optimizer: sgd
+  class_weighted_loss: True
+  loss_function: categorical_crossentropy # "categorical_crossentropy", "focal_loss"
+  feature_extractor:
+    type: mnist_cnn # "fsconv", "simple_cnn", "mobilenetv2", "resnet50", "efficientnetb0", "efficientnetb1", "eff.."
+    global_max_pooling: False
+    num_output_features: 2 # feature dimension of feature extractor output, set to 0 to skip this layer
+    output_activation: sigmoid # sigmoid, relu
+  head:
+    type: gp # deterministic, gp, bnn
+    deterministic:
+      dropout: 0.0
+      number_hidden_units: 2 # feature dimension of hidden layer, set to 0 to skip this layer
+    gp:
+      inducing_points: 10
+    bnn:
+      number_hidden_units: 10
+      kl_loss_factor: 10.0
+
+data:
+  image_target_size: [28, 28]
+  dataset_config: ./dataset_dependent/sicapv2/config.yaml
+  supervision: mil # 'supervised', 'mil'
+  train_split: 0.02
+  num_classes: 10
+
+logging:
+  log_artifacts: False
+  run_name: efficientnetb1
+  tracking_url: ./mlruns
+
+visualization:
+  epochs: 5
