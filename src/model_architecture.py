@@ -175,9 +175,9 @@ def create_head(config: Dict, num_classes: int, num_training_points: int):
                 unconstrained_observation_noise_variance_initializer=(
                     tf.constant_initializer(np.array(1.0).astype(np.float32))),
             ),
-            # tf.keras.layers.Lambda(mc_sampling),
+            tf.keras.layers.Lambda(mc_sampling),
             tf.keras.layers.Softmax(),
-            # tf.keras.layers.Lambda(mc_integration)
+            tf.keras.layers.Lambda(mc_integration)
         ], name='head')
         # scaling KL divergence to batch size and dataset size
         kl_weight = np.array(config["model"]["batch_size"], np.float32) / num_training_points
@@ -217,6 +217,39 @@ class RBFKernelFn(tf.keras.layers.Layer):
             amplitude=tf.nn.softplus(0.1 * self._amplitude), # 0.1
             length_scale=tf.nn.softplus(10.0 * self._length_scale) # 5.
         )
+
+# class LinearKernel(tf.keras.layers.Layer):
+#     """
+#     RGF kernel for Gaussian processes.
+#     """
+#     def __init__(self, **kwargs):
+#         super(LinearKernel, self).__init__(**kwargs)
+#         dtype = kwargs.get('dtype', None)
+#
+#         self._amplitude = self.add_variable(
+#             initializer=tf.constant_initializer(0.0),
+#             dtype=dtype,
+#             name='amplitude')
+#
+#         self._length_scale = self.add_variable(
+#             initializer=tf.constant_initializer(0.0),
+#             dtype=dtype,
+#             name='length_scale')
+#
+#     def call(self, x):
+#         # Never called -- this is just a layer so it can hold variables
+#         # in a way Keras understands.
+#         return x
+#
+#     @property
+#     def kernel(self):
+#         return tfp.math.psd_kernels.Linear(
+#             bias_variance=tf.nn.softplus(1.0 * self._amplitude), # 0.1
+#             slope_variance=tf.nn.softplus(1.0 * self._length_scale) # 5.
+#         )
+
+
+
 
 def compile_model(config, model):
     """

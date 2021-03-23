@@ -11,7 +11,7 @@ from pylab import meshgrid,cm,imshow,contour,clabel,colorbar,axis,title,show
 from model_architecture import create_model, compile_model
 
 
-def generate_mnist_data(split_of_training_samples=1.0):
+def generate_mnist_data(split_of_training_samples=1.0, num_classes=3):
     labeled_split_arg = 'train[:' + str(int(split_of_training_samples * 100)) + '%]'
     unlabeled_split_arg = 'train[:' + str(int((1-split_of_training_samples) * 100)) + '%]'
     (ds_train_labeled, ds_train_unlabeled, ds_test), ds_info = tfds.load(
@@ -24,7 +24,7 @@ def generate_mnist_data(split_of_training_samples=1.0):
     def preprocess(image, label):
         """Normalizes images: `uint8` -> `float32`."""
         image = tf.cast(image, tf.float32) / 255.
-        label = tf.clip_by_value(label, clip_value_min=0, clip_value_max=2)
+        label = tf.clip_by_value(label, clip_value_min=0, clip_value_max=num_classes)
         label = tf.dtypes.cast(label, tf.int32)
 
         return image, label
@@ -43,8 +43,6 @@ def generate_mnist_data(split_of_training_samples=1.0):
     ds_test = prepare(ds_test)
 
     return ds_train_labeled, ds_train_unlabeled, ds_test, ds_info
-
-
 
 
 class RBFKernelFn(tf.keras.layers.Layer):
@@ -81,48 +79,50 @@ def main():
     with open('config.yaml') as file:
         config = yaml.full_load(file)
 
-    ds_train_labeled, ds_train_unlabeled, ds_test, ds_info = generate_mnist_data(config['data']['train_split'])
-    model = create_model(config=config, num_classes=3, num_training_points=config['data']['train_split'])
+    ds_train_labeled, ds_train_unlabeled, ds_test, ds_info = generate_mnist_data(config['data']['train_split'], config['data']['num_classes'])
+    model = create_model(config=config, num_classes=config['data']['num_classes'], num_training_points=config['data']['train_split']*60000)
     compile_model(config, model)
     vis_epochs = config['visualization']['epochs']
     vis_steps = int(config['model']['epochs'] / vis_epochs)
     for i in range(vis_steps):
-        visualize(ds_train_labeled, ds_train_unlabeled, model, epochs=i*vis_epochs,save_name='test')
+        visualize(ds_train_labeled, ds_train_unlabeled, model, config['data']['num_classes'], epochs=i*vis_epochs, save_name='test')
         model.fit(ds_train_labeled, validation_data=ds_test, epochs=vis_epochs)
-    visualize(ds_train_labeled, ds_train_unlabeled, model, epochs=vis_steps * vis_epochs, save_name='test')
+    visualize(ds_train_labeled, ds_train_unlabeled, model, config['data']['num_classes'], epochs=vis_steps * vis_epochs, save_name='test')
 
-def visualize(data_labeled, data_unlabeled, model, epochs, save_name):
+def visualize(data_labeled, data_unlabeled, model, num_classes, epochs, save_name):
     feature_extractor = model.layers[0]
     head = model.layers[1]
     fig = plt.figure()
     plot = fig.add_subplot(1, 1, 1)
     plot.set(xlim=(0.0, 1.0), ylim=(0.0, 1.0))
-    plot_variance(plot, head)
-    plot_data_distribution(plot, data_unlabeled, feature_extractor, small_points=True)
-    plot_data_distribution(plot, data_labeled, feature_extractor)
+    plot_variance(plot, head, num_classes)
+    plot_data_distribution(plot, data_unlabeled, feature_extractor, num_classes, small_points=True)
+    plot_data_distribution(plot, data_labeled, feature_extractor, num_classes)
     os.makedirs(save_name, exist_ok=True)
     fig.savefig('./'+save_name +'/' + str(epochs) + '.jpg', dpi=300)
     plt.close(fig)
 
 
-def plot_data_distribution(plot: plt, data, feature_extractor, small_points=False):
+def plot_data_distribution(plot: plt, data, feature_extractor, num_classes = 3, small_points=False):
     features = feature_extractor.predict(data)
     labels = np.concatenate([y for x, y in data], axis=0)
     if small_points:
-        marker_data = ['kx', 'kx', 'kx']
+        marker_data = 'x'
+        marker_colour = ['k', 'k','k','k','k','k','k','k','k','k']
         markersize = 3
-        alpha = 0.5
+        alpha = 0.3
     else:
-        marker_data = ['gx', 'bx', 'rx']
+        marker_data = 'x'
+        marker_colour = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
         markersize = 3
         alpha = 0.7
 
-    for class_id in range(3):
+    for class_id in range(num_classes):
         x_class = features[labels == class_id]
-        plot.plot(x_class[:, 1], x_class[:, 0], marker_data[class_id], ms=markersize, alpha=alpha)
+        plot.plot(x_class[:, 1], x_class[:, 0], marker_data, color=marker_colour[class_id], ms=markersize, alpha=alpha)
 
 
-def plot_variance(plot, head):
+def plot_variance(plot, head, num_classes):
     # make these smaller to increase the resolution
     x = np.arange(0.0, 1.05, 0.05)
     x_1, x_2 = np.array(meshgrid(x,x))
@@ -140,10 +140,9 @@ def plot_variance(plot, head):
     # stds = np.mean(np.std(outs, axis=0), axis=-1)
 
     std_plot = stds.reshape(x.shape[0], x.shape[0])
-    plot.contourf(x, x, std_plot, cmap='Greys', vmin=0.0, vmax=0.5, alpha=0.7) #  norm=Normalize(),
-    num_classes = 3
+    plot.contourf(x, x, std_plot, cmap='Greys', vmin=0.0, vmax=0.3, alpha=0.7) #  norm=Normalize(),
     thresholds = [0.9, 1.1]
-    colours = ['green', 'blue', 'red']
+    colours = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
     for class_id in range(num_classes):
         class_pred = np.mean(outs, axis=0)[:,class_id]
         class_pred = class_pred.reshape(x.shape[0], x.shape[0])

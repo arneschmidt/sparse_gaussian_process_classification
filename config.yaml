@@ -2,8 +2,8 @@
 model:
   mode: train # "train", "test", "predict", "predict_features"
   batch_size: 16
-  epochs: 200
-  learning_rate: 0.01
+  epochs: 400
+  learning_rate: 0.1
   optimizer: sgd
   class_weighted_loss: True
   loss_function: categorical_crossentropy # "categorical_crossentropy", "focal_loss"
@@ -27,7 +27,8 @@ data:
   image_target_size: [28, 28]
   dataset_config: ./dataset_dependent/sicapv2/config.yaml
   supervision: mil # 'supervised', 'mil'
-  train_split: 0.05
+  train_split: 0.02
+  num_classes: 10
 
 logging:
   log_artifacts: False
