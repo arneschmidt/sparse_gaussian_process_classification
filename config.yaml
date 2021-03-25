@@ -1,9 +1,9 @@
 # This is the main config. Parameters are updated and possibly overwritten by dataset dependent configs.
 model:
   mode: train # "train", "test", "predict", "predict_features"
-  batch_size: 16
-  epochs: 400
-  learning_rate: 0.1
+  batch_size: 128
+  epochs: 200
+  learning_rate: 0.01
   optimizer: sgd
   class_weighted_loss: True
   loss_function: categorical_crossentropy # "categorical_crossentropy", "focal_loss"
@@ -28,7 +28,10 @@ data:
   dataset_config: ./dataset_dependent/sicapv2/config.yaml
   supervision: mil # 'supervised', 'mil'
   train_split: 0.02
-  num_classes: 10
+  num_classes: 3
+  acquisition_steps: 10
+  start_samples: 1000
+  acquisition_samples: 100
 
 logging:
   log_artifacts: False
@@ -36,4 +39,4 @@ logging:
   tracking_url: ./mlruns
 
 visualization:
-  epochs: 5
+  epochs: 50

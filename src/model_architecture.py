@@ -180,12 +180,23 @@ def create_head(config: Dict, num_classes: int, num_training_points: int):
             tf.keras.layers.Lambda(mc_integration)
         ], name='head')
         # scaling KL divergence to batch size and dataset size
-        kl_weight = np.array(config["model"]["batch_size"], np.float32) / num_training_points
-        head.add_loss(tf.reduce_sum(kl_weight * head.layers[0].submodules[5].surrogate_posterior_kl_divergence_prior()))
+        num_training_points = tf.Variable(initial_value=num_training_points, trainable=False)
+        batch_size = tf.constant(config["model"]["batch_size"])
+        kl_weight = 0.001 #tf.cast(batch_size / num_training_points, tf.float32)
+        # head.add_loss(tf.reduce_sum(kl_weight * head.layers[0].submodules[5].surrogate_posterior_kl_divergence_prior()))
+        # head.add_loss(lambda: tf.reduce_sum(head.layers[0].submodules[5].surrogate_posterior_kl_divergence_prior()))
+        # head.add_loss(lambda: kl_weight * tf.reduce_sum(head.layers[0].submodules[5].surrogate_posterior_kl_divergence_prior()))
+        # head.add_loss(lambda: kl_weight * tf.reduce_sum(head.variables[3]))
+        # head.add_loss(lambda: kl_weight * tfp.distributions.kl_divergence(tfp.distributions.MultivariateNormalTriL(loc=head.variables[3][0], scale_tril=tf.linalg.cholesky(head.variables[4][0])), tfp.distributions.MultivariateNormalDiag(loc=[0,0,0,0,0,0,0,0,0,0], scale_diag=[1, 1,1 ,1 ,1 ,1 ,1 ,1, 1, 1])))
+        head.add_loss(lambda: kl_weight * kl_div(head.variables[3][0], head.variables[4][0]))
         head.build()
     else:
         raise Exception("Choose valid model head!")
     return head
+
+def kl_div(mean, cov):
+    kl = 0.5 * (tf.norm(mean) + tf.linalg.trace(cov) - tf.linalg.logdet(cov) - 10)
+    return kl
 
 
 class RBFKernelFn(tf.keras.layers.Layer):
