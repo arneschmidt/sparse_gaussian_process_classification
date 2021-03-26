@@ -35,7 +35,7 @@ def main():
             print('Total epochs finished: ' + str(total_epoch))
             visualize(ds_train_labeled, ds_train_unlabeled, model, config['data']['num_classes'], epochs=total_epoch)
 
-        ids = select_data(ds_train_unlabeled, model, config['data']['start_samples'])
+        ids = select_data(ds_train_unlabeled, model, config['data']['acquisition_samples'])
         ds_train_newly_labeled = data.generate_train_data(indices=data.unlabeled_indices[ids])
         visualize(ds_train_labeled, ds_train_unlabeled, model, config['data']['num_classes'],
                   epochs=((acquisition_step+1)*config['model']['epochs']),

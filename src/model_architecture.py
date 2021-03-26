@@ -172,8 +172,9 @@ def create_head(config: Dict, num_classes: int, num_training_points: int):
                 ),
                 jitter=10e-3,
                 convert_to_tensor_fn=tensor_fn,
+                variational_inducing_observations_scale_initializer=tf.initializers.constant(0.01 * np.tile(np.eye(num_inducing_points, num_inducing_points), (num_classes, 1, 1))),
                 unconstrained_observation_noise_variance_initializer=(
-                    tf.constant_initializer(np.array(1.0).astype(np.float32))),
+                    tf.constant_initializer(np.array(0.1).astype(np.float32))),
             ),
             tf.keras.layers.Lambda(mc_sampling),
             tf.keras.layers.Softmax(),
@@ -182,21 +183,32 @@ def create_head(config: Dict, num_classes: int, num_training_points: int):
         # scaling KL divergence to batch size and dataset size
         num_training_points = tf.Variable(initial_value=num_training_points, trainable=False)
         batch_size = tf.constant(config["model"]["batch_size"])
-        kl_weight = 0.001 #tf.cast(batch_size / num_training_points, tf.float32)
-        # head.add_loss(tf.reduce_sum(kl_weight * head.layers[0].submodules[5].surrogate_posterior_kl_divergence_prior()))
-        # head.add_loss(lambda: tf.reduce_sum(head.layers[0].submodules[5].surrogate_posterior_kl_divergence_prior()))
-        # head.add_loss(lambda: kl_weight * tf.reduce_sum(head.layers[0].submodules[5].surrogate_posterior_kl_divergence_prior()))
-        # head.add_loss(lambda: kl_weight * tf.reduce_sum(head.variables[3]))
-        # head.add_loss(lambda: kl_weight * tfp.distributions.kl_divergence(tfp.distributions.MultivariateNormalTriL(loc=head.variables[3][0], scale_tril=tf.linalg.cholesky(head.variables[4][0])), tfp.distributions.MultivariateNormalDiag(loc=[0,0,0,0,0,0,0,0,0,0], scale_diag=[1, 1,1 ,1 ,1 ,1 ,1 ,1, 1, 1])))
-        head.add_loss(lambda: kl_weight * kl_div(head.variables[3][0], head.variables[4][0]))
+        kl_weight = 0.01 #tf.cast(batch_size / num_training_points, tf.float32)
+        head.add_loss(lambda: kl_weight * tf.reduce_sum(head.layers[0].submodules[5].surrogate_posterior_kl_divergence_prior()))
+        # head.add_loss(kl_loss(head, kl_weight, num_classes))
         head.build()
     else:
         raise Exception("Choose valid model head!")
     return head
 
-def kl_div(mean, cov):
-    kl = 0.5 * (tf.norm(mean) + tf.linalg.trace(cov) - tf.linalg.logdet(cov) - 10)
-    return kl
+# def kl_loss_with_print(loss):
+#     # tf.print(loss)
+#     return loss
+#
+# def kl_loss(head, kl_weight, num_classes):
+#     means = head.variables[3]
+#     cov_matrices = head.variables[4]
+#     def _kl_loss():
+#         loss = kl_weight * tf.reduce_sum([kl_div(means[i], cov_matrices[i], i) for i in range(num_classes)])
+#         return loss
+#     return _kl_loss
+#
+# def kl_div(mean, cov, i):
+#     kl = 0.5 * (tf.norm(mean) + tf.linalg.trace(cov) - tf.linalg.logdet(cov) - 10)
+#     # tf.print('KL div of ', i, ': ', kl)
+#     # tf.print('Mean:', mean)
+#     # tf.print('cov:', cov)
+#     return kl
 
 
 class RBFKernelFn(tf.keras.layers.Layer):
