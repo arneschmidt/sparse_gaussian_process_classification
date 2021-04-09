@@ -23,12 +23,14 @@ def main():
 
     model = create_model(config=config, num_classes=config['data']['num_classes'], num_training_points=100)
     compile_model(config, model)
+
     vis_epochs = config['visualization']['epochs']
     vis_steps = int(config['model']['epochs'] / vis_epochs)
     for acquisition_step in range(config['data']['acquisition_steps']):
         print('Acquisition step ' + str(acquisition_step) + ' | number of labels: ' + str(len(data.labeled_indices)))
         ds_train_labeled = data.generate_train_data()
         ds_train_unlabeled = data.generate_train_data(indices=data.unlabeled_indices)
+        model.variables[13].assign(len(data.labeled_indices))
         for i in range(vis_steps):
             model.fit(ds_train_labeled, validation_data=ds_test, epochs=vis_epochs)
             total_epoch = (acquisition_step*config['model']['epochs']) + (i+1)*vis_epochs
